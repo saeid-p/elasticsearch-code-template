@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "commonjs", // Specifies the module code generation method. Node uses `commonjs`
+    "target": "es6", // Specifies the output language level.
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "outDir": "dist",
+    "esModuleInterop": true
+  },
+  "lib": ["es2015"],
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}
