@@ -1,12 +1,13 @@
 # Documentation: https://elasticsearch-py.readthedocs.io/
 from elasticsearch import AsyncElasticsearch
+from .core import config
 
 """Elasticsearch client and utilities."""
 
-_DEFAULT_TIMEOUT = 60 * 10
+HOST: str = config.read("ELASTICSEARCH_HOST")
+API_KEY: str = config.read("ELASTICSEARCH_API_KEY")
 
 
-def get_client(request_timeout=_DEFAULT_TIMEOUT):
-    url = "http://localhost:5050"
-    client = AsyncElasticsearch(url, request_timeout=request_timeout)
+def get_client():
+    client = AsyncElasticsearch(hosts=HOST, api_key=API_KEY, verify_certs=False)
     return client

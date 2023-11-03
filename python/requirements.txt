@@ -3,3 +3,4 @@ asyncio
 elasticsearch
 pytest
 pytest-asyncio
+faker
