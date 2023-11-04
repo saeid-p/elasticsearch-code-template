@@ -22,5 +22,9 @@
     "ts-jest": "^29.1.1",
     "typescript": "^5.2.2"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.10.0",
+    "@faker-js/faker": "^8.2.0",
+    "uuid": "9.0.1"
+  }
 }
