@@ -4,10 +4,10 @@ from elasticsearch import Elasticsearch  # https://elasticsearch-py.readthedocs.
 
 from ..app import elasticsearch_client
 
-target_index = "test_index_1"
-document_id = "7839e7a9-ea50-465b-a346-beddd48be2c8"
-document_payload = {
-    "id": document_id,
+TARGET_INDEX = "test_index_1"
+DOC_ID = "7839e7a9-ea50-465b-a346-beddd48be2c8"
+DOC_PAYLOAD = {
+    "id": DOC_ID,
     "fullName": "Kim Scott",
     "text": "Elasticsearch: cool. bonsai cool text to analyze and search.",
     "timestamp": datetime.now().isoformat(),
@@ -29,24 +29,22 @@ async def client_ping_test(client: Elasticsearch):
 @pytest.mark.asyncio
 async def index_crud_test(client: Elasticsearch):
     # All crud actions here are idempotent.
-    get_response = await client.indices.get(index=target_index, ignore_unavailable=True)
+    get_response = await client.indices.get(index=TARGET_INDEX, ignore_unavailable=True)
 
     if len(get_response.body) != 0:
-        delete_response = await client.indices.delete(index=target_index)
+        delete_response = await client.indices.delete(index=TARGET_INDEX)
         assert delete_response.body["acknowledged"] == True
 
-    create_response = await client.indices.create(index=target_index)
+    create_response = await client.indices.create(index=TARGET_INDEX)
 
     assert len(create_response.body) > 0
     assert create_response.body["acknowledged"] == True
-    assert create_response.body["index"] == target_index
+    assert create_response.body["index"] == TARGET_INDEX
 
 
 @pytest.mark.asyncio
 async def document_write_single_test(client: Elasticsearch):
-    response = await client.index(
-        index=target_index, id=document_id, document=document_payload
-    )
+    response = await client.index(index=TARGET_INDEX, id=DOC_ID, document=DOC_PAYLOAD)
 
     assert response.body is not None
     assert response.body["result"] in ["created", "updated"]
@@ -54,7 +52,7 @@ async def document_write_single_test(client: Elasticsearch):
 
 @pytest.mark.asyncio
 async def document_read_single_test(client: Elasticsearch):
-    response = await client.get(index=target_index, id=document_id)
+    response = await client.get(index=TARGET_INDEX, id=DOC_ID)
 
     assert response.body is not None
     assert response.body["found"] == True
@@ -62,7 +60,7 @@ async def document_read_single_test(client: Elasticsearch):
 
 @pytest.mark.asyncio
 async def index_refresh_by_name_test(client: Elasticsearch):
-    response = await client.indices.refresh(index=target_index)
+    response = await client.indices.refresh(index=TARGET_INDEX)
 
     assert response.body is not None
     assert response.body["_shards"] is not None
@@ -72,7 +70,7 @@ async def index_refresh_by_name_test(client: Elasticsearch):
 async def index_search_test(client: Elasticsearch):
     query = {"match_all": {}}
 
-    response = await client.search(index=target_index, query=query)
+    response = await client.search(index=TARGET_INDEX, query=query)
 
     assert response.body is not None
     hits = response.body["hits"]
