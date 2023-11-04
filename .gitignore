@@ -130,4 +130,4 @@ dist
 .pnp.*
 
 __pycache__
-python/.envrc
+.envrc
