@@ -3,7 +3,7 @@ from elasticsearch import Elasticsearch  # https://elasticsearch-py.readthedocs.
 
 from ..app import elasticsearch_client
 
-target_index = "test_index_2"
+TARGET_INDEX = "test_index_2"
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ async def index_aggregate_group_by_term_test(client: Elasticsearch):
     query_size = 0  # The size of the return items.
     aggs = {"group_by_term": {"terms": {"field": "hasFlag"}}}
 
-    response = await client.search(index=target_index, aggs=aggs, size=query_size)
+    response = await client.search(index=TARGET_INDEX, aggs=aggs, size=query_size)
 
     aggregations = response.body["aggregations"]
     assert aggregations is not None
@@ -77,7 +77,7 @@ async def index_aggregate_date_histogram_test(client: Elasticsearch):
         }
     }
 
-    response = await client.search(index=target_index, aggs=aggs, size=query_size)
+    response = await client.search(index=TARGET_INDEX, aggs=aggs, size=query_size)
     aggregations = response.body["aggregations"]
 
     items = aggregations["items_over_time"]
@@ -105,7 +105,7 @@ async def index_aggregate_range_test(client: Elasticsearch):
         }
     }
 
-    response = await client.search(index=target_index, aggs=aggs, size=query_size)
+    response = await client.search(index=TARGET_INDEX, aggs=aggs, size=query_size)
     aggregations = response.body["aggregations"]
 
     items = aggregations["seq_ranges"]
