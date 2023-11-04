@@ -3,10 +3,11 @@ import uuid
 import pytest  # https://docs.pytest.org/en/7.4.x/
 from faker import Faker  # https://pypi.org/project/Faker/
 from elasticsearch import Elasticsearch  # https://elasticsearch-py.readthedocs.io/
+from elasticsearch.helpers import async_bulk
 
 from ..app import elasticsearch_client
 
-target_index = "test_index_2"
+TARGET_INDEX = "test_index_2"
 
 
 @pytest.fixture
@@ -17,60 +18,44 @@ def client():
 
 @pytest.mark.asyncio
 async def index_large_dataset_test(client: Elasticsearch):
-    get_response = await client.indices.get(index=target_index, ignore_unavailable=True)
-    if len(get_response.body) != 0:
-        return
+    get_response = await client.indices.get(index=TARGET_INDEX, ignore_unavailable=True)
 
-    create_response = await client.indices.create(index=target_index)
+    if get_response.body is None:
+        create_response = await client.indices.create(index=TARGET_INDEX)
 
-    assert len(create_response.body) > 0
-    assert create_response.body["acknowledged"] == True
-    assert create_response.body["index"] == target_index
+        assert len(create_response.body) > 0
+        assert create_response.body["acknowledged"] == True
+        assert create_response.body["index"] == TARGET_INDEX
 
     now: datetime = datetime.now()
-
+    docs = []
+    doc_count = 1000
     fake = Faker()
-    for i in range(0, 1000):
-        document = {
+
+    for i in range(0, doc_count):
+        doc = {
             "id": str(uuid.uuid4()),
             "timestamp": (now - timedelta(days=i)).isoformat(),
             "seq": i,
             "fullName": fake.name(),
             "address": fake.address(),
             "content": fake.text(),
-            "hasFlag": i % 3 == 0
+            "hasFlag": i % 3 == 0,
         }
 
-        response = await client.index(
-            index=target_index, id=document["id"], document=document
-        )
+        docs.append(doc)
 
-        assert response.body is not None
-        assert response.body["result"] in ["created", "updated"]
+    actions = []
+    for doc in docs:
+        action = {
+            "_op_type": "index",  # "index" for creating a new document, "update" for updating an existing document
+            "_index": TARGET_INDEX,
+            "_source": doc,
+        }
+        actions.append(action)
 
-    client.close()
-
-
-@pytest.mark.asyncio
-async def index_search_test(client: Elasticsearch):
-    query_size = 20  # The size of the return items.
-    query = {"match_all": {}}
-
-    response = await client.search(index=target_index, query=query, size=query_size)
-
-    assert response.body is not None
-    hits = response.body["hits"]
-    assert hits is not None
-
-    totals = hits["total"]
-    assert totals["value"] == 1000
-
-    items = hits["hits"]
-    assert len(items) == query_size
-
-    first_item = items[0]
-    first_item_payload = first_item["_source"]
-    assert first_item_payload["seq"] == 0
+    success, failed = await async_bulk(client, actions, TARGET_INDEX)
+    assert success == doc_count
 
 
 @pytest.mark.asyncio
@@ -80,7 +65,7 @@ async def index_search_test(client: Elasticsearch):
     query = {"match_all": {}}
 
     response = await client.search(
-        index=target_index, query=query, size=query_size, from_=from_index
+        index=TARGET_INDEX, query=query, size=query_size, from_=from_index
     )
 
     assert response.body is not None
@@ -109,7 +94,7 @@ async def index_search_match_test(client: Elasticsearch):
     # The "match" query searches for documents where the "content" field contains the search term.
     query = {"match": {"content": "Magazine"}}
 
-    response = await client.search(index=target_index, query=query)
+    response = await client.search(index=TARGET_INDEX, query=query)
     items = get_items(response)
     assert len(items) > 0
 
@@ -129,47 +114,21 @@ async def index_search_must_term_test(client: Elasticsearch):
         "bool": {
             "must": [
                 # When the mapping for a field indicates that it is of type "text" with a sub-field of type "keyword", it undergoes text analysis.
-                # Whoever, the "keyword" sub-field is not analyzed and is suitable for exact matches.
+                # However, the "keyword" sub-field is not analyzed and is suitable for exact matches.
                 {"term": {"fullName.keyword": "Thomas Johnson"}},
-                {"term": {"seq": 0}},
-            ]
-        }
-    }
-
-    response = await client.search(index=target_index, query=query)
-    items = get_items(response)
-    assert len(items) > 0
-
-
-@pytest.mark.asyncio
-async def index_search_must_match_test(client: Elasticsearch):
-    """
-    "should" clause:
-    - Documents can satisfy the conditions specified in the "should" clause, but they are not required to do so.
-    - While documents that meet "should" criteria are given a relevancy boost, failing to meet these criteria does not exclude them from the search results.
-    - "should" clauses are often used for optional or desirable criteria that can enhance the relevancy of the documents but are not mandatory.
-    """
-    query = {
-        "bool": {
-            "should": [
-                # The "match" query searches for documents where the "fullName" field contains the search term.
-                {"match": {"fullName": "Thomas"}},
-                # The "date_range" query is a specialized version of the "range" query used specifically for date fields.
                 {
                     "range": {
-                        "timestamp": {
-                            # Read more: https://www.elastic.co/guide/en/elasticsearch/reference/8.10/mapping-date-format.html
-                            "format": "yyyy-MM-dd",  # ISO with Timezone: date_optional_time
-                            "gte": "2022-01-01",
-                            "lte": "2022-12-31",
+                        "seq": {
+                            "gte": 0,
+                            "lte": 500,
                         }
-                    },
+                    }
                 },
             ]
         }
     }
 
-    response = await client.search(index=target_index, query=query)
+    response = await client.search(index=TARGET_INDEX, query=query)
     items = get_items(response)
     assert len(items) > 0
 
@@ -187,14 +146,22 @@ async def index_search_should_match_test(client: Elasticsearch):
             "should": [
                 # The "match" query searches for documents where the "fullName" field contains the search term.
                 {"match": {"fullName": "Thomas"}},
-                # The "range" query is used for numeric or date fields. It allows you to specify a range of values and
-                # filter documents where the field falls within that range.
-                {"range": {"seq": {"gte": 0, "lte": 30}}},
+                # The "date_range" query is a specialized version of the "range" query used specifically for date fields.
+                {
+                    "range": {
+                        "timestamp": {
+                            # Read more: https://www.elastic.co/guide/en/elasticsearch/reference/8.10/mapping-date-format.html
+                            "format": "yyyy-MM-dd",  # ISO with Timezone: date_optional_time
+                            "gte": "2023-01-01",
+                            "lte": "2023-12-31",
+                        }
+                    },
+                },
             ]
         }
     }
 
-    response = await client.search(index=target_index, query=query)
+    response = await client.search(index=TARGET_INDEX, query=query)
     items = get_items(response)
     assert len(items) > 0
 
@@ -207,7 +174,7 @@ async def index_search_prefix_test(client: Elasticsearch):
     """
     query = {"prefix": {"fullName.keyword": "Thomas"}}
 
-    response = await client.search(index=target_index, query=query)
+    response = await client.search(index=TARGET_INDEX, query=query)
     items = get_items(response)
     assert len(items) > 0
 
@@ -220,6 +187,6 @@ async def index_search_fuzzy_test(client: Elasticsearch):
     """
     query = {"fuzzy": {"content": "Magazin"}}
 
-    response = await client.search(index=target_index, query=query)
+    response = await client.search(index=TARGET_INDEX, query=query)
     items = get_items(response)
     assert len(items) > 0

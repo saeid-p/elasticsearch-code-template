@@ -43,6 +43,14 @@ async def index_crud_test(client: Elasticsearch):
 
 
 @pytest.mark.asyncio
+async def index_refresh_by_name_test(client: Elasticsearch):
+    response = await client.indices.refresh(index=TARGET_INDEX)
+
+    assert response.body is not None
+    assert response.body["_shards"] is not None
+
+
+@pytest.mark.asyncio
 async def document_write_single_test(client: Elasticsearch):
     response = await client.index(index=TARGET_INDEX, id=DOC_ID, document=DOC_PAYLOAD)
 
@@ -59,14 +67,6 @@ async def document_read_single_test(client: Elasticsearch):
 
 
 @pytest.mark.asyncio
-async def index_refresh_by_name_test(client: Elasticsearch):
-    response = await client.indices.refresh(index=TARGET_INDEX)
-
-    assert response.body is not None
-    assert response.body["_shards"] is not None
-
-
-@pytest.mark.asyncio
 async def index_search_test(client: Elasticsearch):
     query = {"match_all": {}}
 
@@ -75,5 +75,5 @@ async def index_search_test(client: Elasticsearch):
     assert response.body is not None
     hits = response.body["hits"]
     assert hits is not None
-    totals = hits["total"]
-    assert totals is not None
+    total = hits["total"]
+    assert total == 1
