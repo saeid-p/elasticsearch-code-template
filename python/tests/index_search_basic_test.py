@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import pytest  # https://docs.pytest.org/en/7.4.x/
 from faker import Faker  # https://pypi.org/project/Faker/
@@ -27,15 +27,18 @@ async def index_large_dataset_test(client: Elasticsearch):
     assert create_response.body["acknowledged"] == True
     assert create_response.body["index"] == target_index
 
+    now: datetime = datetime.now()
+
     fake = Faker()
     for i in range(0, 1000):
         document = {
             "id": str(uuid.uuid4()),
+            "timestamp": (now - timedelta(days=i)).isoformat(),
             "seq": i,
             "fullName": fake.name(),
             "address": fake.address(),
             "content": fake.text(),
-            "timestamp": datetime.now().isoformat(),
+            "hasFlag": i % 3 == 0
         }
 
         response = await client.index(

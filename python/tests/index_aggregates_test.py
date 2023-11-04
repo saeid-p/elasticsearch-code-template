@@ -22,7 +22,6 @@ async def index_document_count_test(client: Elasticsearch):
         index=",".join(index_names), aggs=aggs, size=query_size
     )
     aggregations = response.body["aggregations"]
-    assert aggregations is not None
 
     indexes = aggregations["indexes"]
     buckets = indexes["buckets"]
@@ -38,22 +37,77 @@ async def index_document_count_test(client: Elasticsearch):
 
 
 @pytest.mark.asyncio
-async def index_search_test(client: Elasticsearch):
-    query_size = 20  # The size of the return items.
-    query = {"match_all": {}}
+async def index_aggregate_group_by_term_test(client: Elasticsearch):
+    """
+    Terms Aggregation - Counting Unique Values.
+    Scenario: You want to count the number of documents for each unique value in a specific field,
+    such as analyzing the distribution of products in an e-commerce dataset.
+    """
+    query_size = 0  # The size of the return items.
+    aggs = {"group_by_term": {"terms": {"field": "hasFlag"}}}
 
-    response = await client.search(index=target_index, query=query, size=query_size)
+    response = await client.search(index=target_index, aggs=aggs, size=query_size)
 
-    assert response.body is not None
-    hits = response.body["hits"]
-    assert hits is not None
+    aggregations = response.body["aggregations"]
+    assert aggregations is not None
 
-    totals = hits["total"]
-    assert totals["value"] == 1000
+    indexes = aggregations["group_by_term"]
+    buckets = indexes["buckets"]
+    assert len(buckets) == 2
+    assert buckets[0]["doc_count"] == 666
+    assert buckets[1]["doc_count"] == 334
 
-    items = hits["hits"]
-    assert len(items) == query_size
 
-    first_item = items[0]
-    first_item_payload = first_item["_source"]
-    assert first_item_payload["seq"] == 0
+@pytest.mark.asyncio
+async def index_aggregate_date_histogram_test(client: Elasticsearch):
+    """
+    Date Histogram Aggregation - Time Series Analysis.
+    Scenario: You have timestamped data, and you want to analyze it over time in intervals (e.g., daily, weekly, or monthly),
+    such as tracking the number of orders over time.
+    """
+    query_size = 0  # The size of the return items.
+    aggs = {
+        "items_over_time": {
+            "date_histogram": {
+                "field": "timestamp",
+                "calendar_interval": "month",
+                "format": "yyyy-MM",
+                "min_doc_count": 0,
+            }
+        }
+    }
+
+    response = await client.search(index=target_index, aggs=aggs, size=query_size)
+    aggregations = response.body["aggregations"]
+
+    items = aggregations["items_over_time"]
+    buckets = items["buckets"]
+    assert len(buckets) > 0
+
+
+@pytest.mark.asyncio
+async def index_aggregate_range_test(client: Elasticsearch):
+    """
+    Range Aggregation - Grouping by Numeric Ranges.
+    Scenario: You want to group documents into numeric value ranges to analyze data distribution, such as grouping salaries into income brackets.
+    """
+    query_size = 0  # The size of the return items.
+    aggs = {
+        "seq_ranges": {
+            "range": {
+                "field": "seq",
+                "ranges": [
+                    {"from": 0, "to": 200},
+                    {"from": 200, "to": 600},
+                    {"from": 600},
+                ],
+            }
+        }
+    }
+
+    response = await client.search(index=target_index, aggs=aggs, size=query_size)
+    aggregations = response.body["aggregations"]
+
+    items = aggregations["seq_ranges"]
+    buckets = items["buckets"]
+    assert len(buckets) > 0
