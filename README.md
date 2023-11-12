@@ -1,5 +1,4 @@
-# elasticsearch-code-template
-Elasticsearch Code Template
+# Elasticsearch Code Template & Notes
 
 Elasticsearch provides a wide range of query options to help you search and retrieve documents that match specific criteria. These queries can be categorized into several types based on their functionality. Here are some of the most commonly used query options in Elasticsearch:
 
