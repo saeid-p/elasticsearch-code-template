@@ -1,6 +1,6 @@
 # Documentation: https://elasticsearch-py.readthedocs.io/
 from elasticsearch import AsyncElasticsearch
-from .core import config
+from . import config
 
 """Elasticsearch client and utilities."""
 
