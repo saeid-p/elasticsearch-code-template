@@ -1,4 +1,7 @@
 {
   "jest.jestCommandLine": "yarn test",
-  "jest.rootPath": "./node/src"
+  "jest.rootPath": "./node/src",
+  "python.testing.pytestArgs": ["tests"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }
